@@ -1,75 +1,78 @@
-import React, { useEffect, useMemo } from "react";
-import { useParams, Link as RouterLink } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardMedia,
-  Typography,
-  Stack,
-  Divider,
-  Link,
-} from "@mui/material";
+import React, { useEffect } from "react";
+import { Card, CardMedia, CardContent, Typography } from "@mui/material";
 import models from "../../modelData/models";
-import { formatDate } from "../../lib/formatDate";
 
-const UserPhotos = ({ setTopBarTitle }) => {
-  const { userId } = useParams();
-  const user = useMemo(() => models.userModel(userId), [userId]);
-  const photos = useMemo(() => models.photoOfUserModel(userId) || [], [userId]);
+// ✅ Tự động nhận biết môi trường: CodeSandbox hoặc localhost
+function getImageUrl(fileName) {
+  const isSandbox = window.location.hostname.includes("codesandbox");
+
+  if (isSandbox) {
+    // Ảnh online từ GitHub qua CDN jsDelivr
+    return `https://cdn.jsdelivr.net/gh/anhquan2012004/photo-sharing-v1/src/images/${fileName}`;
+  }
+
+  // Ảnh local: lấy từ thư mục public/images/
+  return `/images/${fileName}`;
+}
+
+function UserPhotos({ setTopBarTitle }) {
+  const userId = window.location.pathname.split("/").pop();
+  const user = models.userModel(userId);
+  const photos = models.photoOfUserModel(userId);
 
   useEffect(() => {
-    if (user)
-      setTopBarTitle?.(`Photos of ${user.first_name} ${user.last_name}`);
+    if (user) {
+      setTopBarTitle(`Photos of ${user.first_name} ${user.last_name}`);
+    }
   }, [user, setTopBarTitle]);
 
-  if (!user) return <Typography sx={{ p: 2 }}>User not found.</Typography>;
+  if (!photos || photos.length === 0) {
+    return (
+      <Typography variant="body1" sx={{ margin: "20px" }}>
+        No photos for this user.
+      </Typography>
+    );
+  }
 
   return (
-    <Stack spacing={2} sx={{ m: 2 }}>
-      {photos.map((p) => (
-        <Card key={p._id} variant="outlined">
+    <div style={{ padding: "20px" }}>
+      {photos.map((photo) => (
+        <Card key={photo._id} sx={{ marginBottom: "20px" }}>
           <CardMedia
             component="img"
-            image={`/images/${p.file_name}`}
-            alt={p.file_name}
+            height="300"
+            image={getImageUrl(photo.file_name)}
+            alt={photo.file_name}
+            onError={(e) => {
+              e.target.src =
+                "https://via.placeholder.com/400x250?text=Image+Not+Found";
+            }}
           />
           <CardContent>
             <Typography variant="body2" color="text.secondary">
-              Posted: {formatDate(p.date_time)}
+              Posted: {photo.date_time}
             </Typography>
 
-            {Array.isArray(p.comments) && p.comments.length > 0 && (
-              <Stack spacing={1} sx={{ mt: 1 }}>
-                <Divider />
-                <Typography variant="subtitle1">Comments</Typography>
-                {p.comments.map((c) => (
-                  <Stack key={c._id} spacing={0.25}>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatDate(c.date_time)}
-                    </Typography>
-                    <Typography variant="body2">
-                      <Link
-                        component={RouterLink}
-                        to={`/users/${c.user._id}`}
-                        underline="hover"
-                      >
-                        {c.user.first_name} {c.user.last_name}
-                      </Link>
-                      {": "}
-                      {c.comment}
-                    </Typography>
-                  </Stack>
+            {photo.comments && photo.comments.length > 0 && (
+              <>
+                <Typography variant="subtitle1" sx={{ marginTop: "10px" }}>
+                  Comments
+                </Typography>
+                {photo.comments.map((comment, idx) => (
+                  <Typography key={idx} variant="body2">
+                    <strong>
+                      {comment.user.first_name} {comment.user.last_name}:
+                    </strong>{" "}
+                    {comment.comment}
+                  </Typography>
                 ))}
-              </Stack>
+              </>
             )}
           </CardContent>
         </Card>
       ))}
-      {photos.length === 0 && (
-        <Typography>No photos for this user.</Typography>
-      )}
-    </Stack>
+    </div>
   );
-};
+}
 
 export default UserPhotos;
